@@ -170,17 +170,16 @@ const Overview: React.FC = () => {
             prevLive = prevOccArray[prevOccArray.length - 1].count || 0;
         }
 
-        // Processing Occupancy Data - using UTC time to match backend
+        // Processing Occupancy Data - API returns hourly buckets
         const rawOccupancy = Array.isArray(occupancyRes) ? occupancyRes : (occupancyRes as any)?.buckets || [];
         const formattedOccupancy: ChartDataPoint[] = rawOccupancy.map((item: any) => {
              const ts = item.timestamp || item.bucket || Date.now();
              const date = new Date(ts);
-             // Use UTC time to match backend data format
              const hours = date.getUTCHours();
              const minutes = date.getUTCMinutes();
              return {
                  time: `${hours}:${minutes.toString().padStart(2, '0')}`,
-                 count: item.count || item.occupancy || 0,
+                 count: item.count || item.occupancy || item.siteOccupancy || 0,
                  timestamp: ts
              };
         });
@@ -261,28 +260,29 @@ const Overview: React.FC = () => {
     if (isToday) {
         // Create handler once, reuse it
         socketHandler = (data: any) => {
-            if (data && typeof data.count === 'number') {
+            // Socket sends siteOccupancy for the total count
+            const liveCount = data?.siteOccupancy;
+
+            if (typeof liveCount === 'number') {
                 // Update live count immediately
-                setLiveOccupancy(data.count);
-                
-                // Update chart efficiently - using UTC time to match backend
+                setLiveOccupancy(liveCount);
+
+                // Update chart with new data point
                 setOccupancyData(prev => {
                     const now = new Date();
-                    // Use UTC time to match the chart data format
                     const hours = now.getUTCHours();
                     const minutes = now.getUTCMinutes();
                     const timeStr = `${hours}:${minutes.toString().padStart(2, '0')}`;
-                    
-                    // Check if we can just update the last point
+
+                    // Same minute - update existing point
                     if (prev.length > 0 && prev[prev.length - 1].time === timeStr) {
-                        // Same minute, just update count
                         const updated = [...prev];
-                        updated[updated.length - 1] = { ...updated[updated.length - 1], count: data.count };
+                        updated[updated.length - 1] = { ...updated[updated.length - 1], count: liveCount };
                         return updated;
                     } else {
-                        // New minute, add new point (keep last 50 points for performance)
-                        const newData = [...prev, { time: timeStr, count: data.count, timestamp: Date.now() }];
-                        return newData.slice(-50); // Keep only recent 50 points
+                        // New minute - add new point, keep last 50 for performance
+                        const newData = [...prev, { time: timeStr, count: liveCount, timestamp: Date.now() }];
+                        return newData.slice(-50);
                     }
                 });
             }
