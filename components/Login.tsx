@@ -25,7 +25,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       await api.login(email, password);
       onLogin(); // Navigate to dashboard on success
     } catch (err: any) {
-      console.error(err);
+      // Show user-friendly message, avoid exposing internal details
       setError(err.message || 'Login failed. Please check your credentials.');
     } finally {
       setIsLoading(false);
@@ -72,49 +72,55 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
           {/* Login Form */}
           <div className="p-8 pt-10">
-            <form onSubmit={handleLogin} className="space-y-6">
-              
+            <form onSubmit={handleLogin} className="space-y-6" aria-label="Login form">
+
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-500 uppercase">Email ID *</label>
+                <label htmlFor="email" className="text-xs font-semibold text-gray-500 uppercase">Email ID *</label>
                 <input
+                  id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
                   placeholder="name@company.com"
+                  autoComplete="email"
                   required
                 />
               </div>
 
               <div className="space-y-1 relative">
-                <label className="text-xs font-semibold text-gray-500 uppercase">Password *</label>
+                <label htmlFor="password" className="text-xs font-semibold text-gray-500 uppercase">Password *</label>
                 <div className="relative">
                   <input
+                    id="password"
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors pr-10"
                     placeholder="Enter password"
+                    autoComplete="current-password"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                     className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
                   >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    {showPassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
                   </button>
                 </div>
               </div>
 
-              {error && <p className="text-red-500 text-xs italic bg-red-50 p-2 rounded border border-red-100">{error}</p>}
+              {error && <p role="alert" className="text-red-500 text-xs italic bg-red-50 p-2 rounded border border-red-100">{error}</p>}
 
               <button
                 type="submit"
                 disabled={isLoading}
+                aria-busy={isLoading}
                 className="w-full bg-primary text-white font-medium py-3 rounded hover:bg-primary-dark transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
               >
-                {isLoading && <Loader2 size={18} className="animate-spin" />}
+                {isLoading && <Loader2 size={18} className="animate-spin" aria-hidden="true" />}
                 {isLoading ? 'Authenticating...' : 'Login'}
               </button>
             </form>
