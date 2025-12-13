@@ -1,4 +1,4 @@
-import { AnalyticsRequest, AuthResponse, PaginatedResponse, PaginationRequest, Site } from "../types";
+import { AnalyticsRequest, AuthResponse, CreateUserRequest, CreateUserResponse, PaginatedResponse, PaginationRequest, Site } from "../types";
 
 const BASE_URL = 'https://hiring-dev.internal.kloudspot.com/api';
 
@@ -114,6 +114,12 @@ class ApiService {
 
   async getEntries(payload: PaginationRequest): Promise<PaginatedResponse<any>> {
     return this.request('/analytics/entry-exit', 'POST', payload);
+  }
+
+  // --- User Management ---
+
+  async createUser(payload: CreateUserRequest): Promise<CreateUserResponse> {
+    return this.request('/user/create', 'POST', payload);
   }
 }
 

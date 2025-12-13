@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Maximize, Power, Menu } from 'lucide-react';
+import { LayoutDashboard, Maximize, Power, Menu, UserPlus } from 'lucide-react';
 import { ViewState } from '../types';
 
 interface SidebarProps {
@@ -55,6 +55,19 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, onLogout }
         >
           <Maximize size={20} /> {/* Icon matching design (box with arrow) */}
           <span className="font-medium">Crowd Entries</span>
+        </button>
+
+        {/* User Management */}
+        <button
+          onClick={() => onChangeView(ViewState.USER_MANAGEMENT)}
+          className={`w-full flex items-center gap-3 px-6 py-3 transition-colors border-l-4 ${
+            currentView === ViewState.USER_MANAGEMENT
+              ? 'bg-white/10 border-white text-white'
+              : 'border-transparent text-white/60 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <UserPlus size={20} />
+          <span className="font-medium">User Management</span>
         </button>
       </div>
 

@@ -93,4 +93,15 @@ export interface PaginatedResponse<T> {
 export enum ViewState {
   OVERVIEW = 'overview',
   ENTRIES = 'entries',
+  USER_MANAGEMENT = 'user_management',
+}
+
+// User Creation
+export interface CreateUserRequest {
+  name: string;
+  email: string;
+}
+
+export interface CreateUserResponse {
+  message: string;
 }

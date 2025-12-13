@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Overview from './components/Overview';
 import CrowdEntries from './components/CrowdEntries';
+import UserManagement from './components/UserManagement';
 import { ViewState } from './types';
 import { api } from './services/api';
 import { socketService } from './services/socket.ts';
@@ -64,6 +65,7 @@ const App: React.FC = () => {
         <main className="flex-1 overflow-y-auto">
           {currentView === ViewState.OVERVIEW && <Overview />}
           {currentView === ViewState.ENTRIES && <CrowdEntries />}
+          {currentView === ViewState.USER_MANAGEMENT && <UserManagement />}
         </main>
       </div>
     </div>
