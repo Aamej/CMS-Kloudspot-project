@@ -47,6 +47,8 @@ export interface PaginationRequest extends AnalyticsRequest {
 export interface EntryExitRecord {
   personId: string;
   personName: string;
+  gender?: string;
+  sex?: string;
   zoneId?: string;
   zoneName?: string;
   severity?: string;
@@ -55,6 +57,16 @@ export interface EntryExitRecord {
   exitUtc?: number;
   exitLocal?: string;
   dwellMinutes?: number;
+}
+
+// Real-time alert from socket
+export interface Alert {
+  id: string;
+  personName: string;
+  zoneName: string;
+  severity: 'high' | 'medium' | 'low';
+  timestamp: number;
+  type: 'entry' | 'exit';
 }
 
 // Mock Data Record (Frontend only)
