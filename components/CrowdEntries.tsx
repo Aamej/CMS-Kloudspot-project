@@ -32,15 +32,20 @@ const CrowdEntries: React.FC = () => {
   }, []);
 
   // This is the Initial load - fetch site info
+  // Initial load - fetch site info
   useEffect(() => {
     const init = async () => {
         try {
             const sites = await api.getSites();
             if (sites && sites.length > 0) {
                 setCurrentSite(sites[0]);
+            } else {
+                // No sites available - stop loading spinner
+                setLoading(false);
             }
         } catch {
-            // Failed to load sites - component will show empty state
+            // Failed to load sites - stop loading spinner
+            setLoading(false);
         }
     };
     init();
