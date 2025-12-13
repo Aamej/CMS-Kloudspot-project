@@ -1,13 +1,12 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Calendar, TrendingUp, TrendingDown, Loader2, Minus } from 'lucide-react';
-import { 
+import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, ReferenceLine
 } from 'recharts';
 import { api } from '../services/api';
 import { socketService } from '../services/socket.ts';
 import { ChartDataPoint, Site } from '../types';
-import { OCCUPANCY_DATA, DEMOGRAPHICS_TREND_DATA, PIE_DATA } from '../constants';
 
 // Calculating percentage diff for the trends
 const calculateTrend = (current: number, previous: number) => {
@@ -54,18 +53,20 @@ const CustomLiveLabel = (props: any) => {
     );
 };
 
+// Default colors for demographics pie chart
+const PIE_COLORS = { male: '#009688', female: '#e91e63' };
+
 const Overview: React.FC = () => {
-  // Show mock data immediately while loading - better UX
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [currentSite, setCurrentSite] = useState<Site | null>(null);
   const [simStarted, setSimStarted] = useState(false);
-  
+
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
-  // Main Stats - Initialize with mock data for instant display
-  const [liveOccupancy, setLiveOccupancy] = useState(OCCUPANCY_DATA[OCCUPANCY_DATA.length - 1]?.count || 198);
-  const [footfall, setFootfall] = useState(2436);
-  const [avgDwell, setAvgDwell] = useState(8.5);
+  // Main Stats - Start with 0, only show real data
+  const [liveOccupancy, setLiveOccupancy] = useState(0);
+  const [footfall, setFootfall] = useState(0);
+  const [avgDwell, setAvgDwell] = useState(0);
 
   // Trend Comparisons
   const [trends, setTrends] = useState({
@@ -74,10 +75,10 @@ const Overview: React.FC = () => {
       dwell: { value: 0, direction: 'neutral' }
   });
 
-  // Chart Data - Start with mock data so charts render immediately
-  const [occupancyData, setOccupancyData] = useState<ChartDataPoint[]>(OCCUPANCY_DATA);
-  const [demographicsTrend, setDemographicsTrend] = useState<ChartDataPoint[]>(DEMOGRAPHICS_TREND_DATA);
-  const [pieData, setPieData] = useState<{name: string, value: number, color: string}[]>(PIE_DATA);
+  // Chart Data - Start empty, only show real data from API
+  const [occupancyData, setOccupancyData] = useState<ChartDataPoint[]>([]);
+  const [demographicsTrend, setDemographicsTrend] = useState<ChartDataPoint[]>([]);
+  const [pieData, setPieData] = useState<{name: string, value: number, color: string}[]>([]);
 
   // Simple check for Today
   const isToday = useMemo(() => {
@@ -184,26 +185,20 @@ const Overview: React.FC = () => {
              };
         });
 
-        // Checking if data is actual valid data or empty
-        const hasRealData = formattedOccupancy.length > 0 && formattedOccupancy.some(d => d.count && d.count > 0);
-        
-        // Fallback to mock data if API is empty today, so graph looks nice
-        const shouldUseMock = !hasRealData && isToday;
-        
-        const finalOccupancyData = shouldUseMock ? OCCUPANCY_DATA : formattedOccupancy;
-        setOccupancyData(finalOccupancyData);
+        // Use real data only - no mock fallbacks
+        setOccupancyData(formattedOccupancy);
 
-        // Setting live count from the last point on graph
+        // Live count from the last data point, or 0 if no data
         let currentLive = 0;
-        if (finalOccupancyData.length > 0) {
-            currentLive = finalOccupancyData[finalOccupancyData.length - 1].count || 0;
+        if (formattedOccupancy.length > 0) {
+            currentLive = formattedOccupancy[formattedOccupancy.length - 1].count || 0;
         }
         setLiveOccupancy(currentLive);
 
         setTrends({
             footfall: calculateTrend(footfallRes.footfall || 0, prevFootfall),
             dwell: calculateTrend(dwellRes.avgDwellMinutes || 0, prevDwell),
-            occupancy: calculateTrend(currentLive, prevLive || 140)
+            occupancy: calculateTrend(currentLive, prevLive)
         });
 
         // Processing Demographics - using UTC time for consistency
@@ -217,7 +212,6 @@ const Overview: React.FC = () => {
             totalFemale += f;
             const ts = item.timestamp || item.bucket || Date.now();
             const date = new Date(ts);
-            // Use UTC time to match backend
             const hours = date.getUTCHours();
             const minutes = date.getUTCMinutes();
             return {
@@ -226,34 +220,32 @@ const Overview: React.FC = () => {
                 countFemale: f
             };
         });
-        
-        if (formattedDemo.length > 0) {
-            setDemographicsTrend(formattedDemo);
-            const grandTotal = totalMale + totalFemale || 1;
+
+        setDemographicsTrend(formattedDemo);
+
+        // Pie chart shows percentage breakdown, empty if no data
+        if (totalMale > 0 || totalFemale > 0) {
+            const grandTotal = totalMale + totalFemale;
             setPieData([
-                { name: 'Males', value: Math.round((totalMale / grandTotal) * 100), color: '#68B0AB' },
-                { name: 'Females', value: Math.round((totalFemale / grandTotal) * 100), color: '#B6E2DD' }
+                { name: 'Males', value: Math.round((totalMale / grandTotal) * 100), color: PIE_COLORS.male },
+                { name: 'Females', value: Math.round((totalFemale / grandTotal) * 100), color: PIE_COLORS.female }
             ]);
-        } else if (isToday) {
-             setDemographicsTrend(DEMOGRAPHICS_TREND_DATA);
-             setPieData(PIE_DATA);
         } else {
-             setDemographicsTrend([]);
-             setPieData([]);
+            setPieData([]);
         }
 
       } catch {
-        // API failed - fallback to mock data so UI remains usable
-        setFootfall(2436);
-        setAvgDwell(8.5);
-        setOccupancyData(OCCUPANCY_DATA);
-        setLiveOccupancy(OCCUPANCY_DATA[OCCUPANCY_DATA.length - 1].count || 734); 
-        setDemographicsTrend(DEMOGRAPHICS_TREND_DATA);
-        setPieData(PIE_DATA);
+        // API failed - reset to empty state
+        setFootfall(0);
+        setAvgDwell(0);
+        setOccupancyData([]);
+        setLiveOccupancy(0);
+        setDemographicsTrend([]);
+        setPieData([]);
         setTrends({
-            footfall: { value: 10, direction: 'down' },
-            dwell: { value: 6, direction: 'up' },
-            occupancy: { value: 10, direction: 'up' }
+            footfall: { value: 0, direction: 'neutral' },
+            dwell: { value: 0, direction: 'neutral' },
+            occupancy: { value: 0, direction: 'neutral' }
         });
       } finally {
         setLoading(false);
