@@ -118,9 +118,8 @@ const Overview: React.FC = () => {
                     });
                 }
             }
-        } catch (e) {
-            console.error("Init failed", e);
-            // Keep default site, UI already showing
+        } catch {
+            // Init failed - keep showing default site/mock data
         }
     };
     init();
@@ -243,9 +242,8 @@ const Overview: React.FC = () => {
              setPieData([]);
         }
 
-      } catch (error) {
-        console.error("Fetch failed", error);
-        // Fallback Mock Data if API totally fails
+      } catch {
+        // API failed - fallback to mock data so UI remains usable
         setFootfall(2436);
         setAvgDwell(8.5);
         setOccupancyData(OCCUPANCY_DATA);
