@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { Calendar, TrendingUp, TrendingDown, Loader2, Minus } from 'lucide-react';
+import { Calendar, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, ReferenceLine
@@ -57,7 +57,6 @@ const CustomLiveLabel = (props: any) => {
 const PIE_COLORS = { male: '#009688', female: '#e91e63' };
 
 const Overview: React.FC = () => {
-  const [loading, setLoading] = useState(true);
   const [currentSite, setCurrentSite] = useState<Site | null>(null);
   const [simStarted, setSimStarted] = useState(false);
 
@@ -135,17 +134,20 @@ const Overview: React.FC = () => {
         const { fromUtc, toUtc } = getRange(selectedDate);
         const payload = { siteId: currentSite.siteId, fromUtc, toUtc };
 
-        // PHASE 1: Fetch primary data first (4 calls) - show data ASAP
-        const [footfallRes, dwellRes, occupancyRes, demoRes] = await Promise.all([
-            api.getFootfall(payload),
-            api.getDwellTime(payload),
-            api.getOccupancyTrends(payload),
-            api.getDemographics(payload),
-        ]);
+        // Fire all requests immediately, update UI as each returns
+        const footfallPromise = api.getFootfall(payload);
+        const dwellPromise = api.getDwellTime(payload);
+        const occupancyPromise = api.getOccupancyTrends(payload);
+        const demoPromise = api.getDemographics(payload);
 
-        // Update UI immediately with primary data
-        setFootfall(footfallRes.footfall || 0);
-        setAvgDwell(Math.round(dwellRes.avgDwellMinutes || 0));
+        // Update footfall as soon as it returns
+        footfallPromise.then(res => setFootfall(res.footfall || 0)).catch(() => {});
+
+        // Update dwell as soon as it returns
+        dwellPromise.then(res => setAvgDwell(Math.round(res.avgDwellMinutes || 0))).catch(() => {});
+
+        // Wait for chart data
+        const [occupancyRes, demoRes] = await Promise.all([occupancyPromise, demoPromise]);
 
         // Processing Occupancy Data
         const rawOccupancy = Array.isArray(occupancyRes) ? occupancyRes : (occupancyRes as any)?.buckets || [];
@@ -205,13 +207,15 @@ const Overview: React.FC = () => {
             setPieData([]);
         }
 
-        setLoading(false); // Show UI now!
-
-        // PHASE 2: Fetch trend comparison data in background (non-blocking)
+        // Fetch trend comparison data in background
         const yesterday = new Date(selectedDate);
         yesterday.setDate(yesterday.getDate() - 1);
         const yesterdayRange = getRange(yesterday);
         const prevPayload = { siteId: currentSite.siteId, fromUtc: yesterdayRange.fromUtc, toUtc: yesterdayRange.toUtc };
+
+        // Get current values for comparison
+        const currentFootfall = await footfallPromise.catch(() => ({ footfall: 0 }));
+        const currentDwell = await dwellPromise.catch(() => ({ avgDwellMinutes: 0 }));
 
         Promise.all([
             api.getFootfall(prevPayload).catch(() => ({ footfall: 0 })),
@@ -226,28 +230,14 @@ const Overview: React.FC = () => {
                 prevLive = prevOccArray[prevOccArray.length - 1].count || 0;
             }
             setTrends({
-                footfall: calculateTrend(footfallRes.footfall || 0, prevFootfall),
-                dwell: calculateTrend(dwellRes.avgDwellMinutes || 0, prevDwell),
+                footfall: calculateTrend(currentFootfall.footfall || 0, prevFootfall),
+                dwell: calculateTrend(currentDwell.avgDwellMinutes || 0, prevDwell),
                 occupancy: calculateTrend(currentLive, prevLive)
             });
-        }).catch(() => {
-            // Trend comparison failed, keep neutral
-        });
+        }).catch(() => {});
 
       } catch {
-        // API failed - reset to empty state
-        setFootfall(0);
-        setAvgDwell(0);
-        setOccupancyData([]);
-        setLiveOccupancy(0);
-        setDemographicsTrend([]);
-        setPieData([]);
-        setTrends({
-            footfall: { value: 0, direction: 'neutral' },
-            dwell: { value: 0, direction: 'neutral' },
-            occupancy: { value: 0, direction: 'neutral' }
-        });
-        setLoading(false);
+        // API failed - values stay at 0
       }
     };
 
@@ -312,13 +302,7 @@ const Overview: React.FC = () => {
       return date.toISOString().split('T')[0];
   };
 
-  if (!currentSite && loading) {
-      return (
-          <div className="h-full w-full flex items-center justify-center text-primary">
-              <Loader2 size={40} className="animate-spin" />
-          </div>
-      );
-  }
+  // Show UI immediately, data will populate as it loads
 
   // Small sub-component for trends
   const TrendIndicator = ({ trend, label }: { trend: { value: number, direction: string }, label: string }) => {
