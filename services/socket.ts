@@ -43,14 +43,14 @@ class SocketService {
       }
     } as any);
 
-    // Attach listeners immediately when connected
+    // Attach listeners once connection is established
     this.socket.on('connect', () => {
-      console.log('Socket connected successfully');
       this.attachPendingListeners();
     });
 
+    // Silent reconnection handling - no logs in production
     this.socket.on('disconnect', () => {
-      console.log('Socket disconnected');
+      // Connection lost, socket.io will auto-reconnect
     });
   }
 
