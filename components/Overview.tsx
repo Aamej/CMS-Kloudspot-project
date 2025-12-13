@@ -131,46 +131,23 @@ const Overview: React.FC = () => {
     if (!currentSite) return;
 
     const fetchData = async () => {
-      // Don't show loading spinner, keep mock data visible
-      // setLoading(true); // Removed - show data immediately
-      
       try {
         const { fromUtc, toUtc } = getRange(selectedDate);
         const payload = { siteId: currentSite.siteId, fromUtc, toUtc };
 
-        // Preparing yesterday's range for trend comparison
-        const yesterday = new Date(selectedDate);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayRange = getRange(yesterday);
-        const prevPayload = { siteId: currentSite.siteId, fromUtc: yesterdayRange.fromUtc, toUtc: yesterdayRange.toUtc };
-
-        // Using Promise.all to fetch everything in parallel for speed
-        const [
-            footfallRes, dwellRes, occupancyRes, demoRes,
-            prevFootfallRes, prevDwellRes, prevOccupancyRes
-        ] = await Promise.all([
+        // PHASE 1: Fetch primary data first (4 calls) - show data ASAP
+        const [footfallRes, dwellRes, occupancyRes, demoRes] = await Promise.all([
             api.getFootfall(payload),
             api.getDwellTime(payload),
             api.getOccupancyTrends(payload),
             api.getDemographics(payload),
-            api.getFootfall(prevPayload).catch(() => ({ footfall: 0 })),
-            api.getDwellTime(prevPayload).catch(() => ({ avgDwellMinutes: 0 })),
-            api.getOccupancyTrends(prevPayload).catch(() => ([])),
         ]);
 
+        // Update UI immediately with primary data
         setFootfall(footfallRes.footfall || 0);
         setAvgDwell(Math.round(dwellRes.avgDwellMinutes || 0));
 
-        const prevFootfall = prevFootfallRes.footfall || 0;
-        const prevDwell = prevDwellRes.avgDwellMinutes || 0;
-        
-        let prevLive = 0;
-        const prevOccArray = Array.isArray(prevOccupancyRes) ? prevOccupancyRes : [];
-        if (prevOccArray.length > 0) {
-            prevLive = prevOccArray[prevOccArray.length - 1].count || 0;
-        }
-
-        // Processing Occupancy Data - API returns hourly buckets
+        // Processing Occupancy Data
         const rawOccupancy = Array.isArray(occupancyRes) ? occupancyRes : (occupancyRes as any)?.buckets || [];
         const formattedOccupancy: ChartDataPoint[] = rawOccupancy.map((item: any) => {
              const ts = item.timestamp || item.bucket || Date.now();
@@ -183,30 +160,24 @@ const Overview: React.FC = () => {
                  timestamp: ts
              };
         });
-
-        // Use real data only - no mock fallbacks
         setOccupancyData(formattedOccupancy);
 
-        // Live count from the last data point, or 0 if no data
         let currentLive = 0;
         if (formattedOccupancy.length > 0) {
             currentLive = formattedOccupancy[formattedOccupancy.length - 1].count || 0;
         }
         setLiveOccupancy(currentLive);
 
-        setTrends({
-            footfall: calculateTrend(footfallRes.footfall || 0, prevFootfall),
-            dwell: calculateTrend(dwellRes.avgDwellMinutes || 0, prevDwell),
-            occupancy: calculateTrend(currentLive, prevLive)
-        });
+        // Processing Demographics - DEBUG: Log to see actual structure
+        console.log('Demographics API Response:', demoRes);
 
-        // Processing Demographics - using UTC time for consistency
         let totalMale = 0;
         let totalFemale = 0;
         const rawDemo = Array.isArray(demoRes) ? demoRes : (demoRes as any)?.buckets || [];
         const formattedDemo: ChartDataPoint[] = rawDemo.map((item: any) => {
-            const m = item.male || item.maleCount || 0;
-            const f = item.female || item.femaleCount || 0;
+            // Try multiple possible field names from API
+            const m = item.male ?? item.maleCount ?? item.males ?? item.m ?? 0;
+            const f = item.female ?? item.femaleCount ?? item.females ?? item.f ?? 0;
             totalMale += m;
             totalFemale += f;
             const ts = item.timestamp || item.bucket || Date.now();
@@ -219,10 +190,11 @@ const Overview: React.FC = () => {
                 countFemale: f
             };
         });
+        console.log('Demographics totals - Male:', totalMale, 'Female:', totalFemale);
 
         setDemographicsTrend(formattedDemo);
 
-        // Pie chart shows percentage breakdown, empty if no data
+        // Pie chart shows percentage breakdown
         if (totalMale > 0 || totalFemale > 0) {
             const grandTotal = totalMale + totalFemale;
             setPieData([
@@ -232,6 +204,35 @@ const Overview: React.FC = () => {
         } else {
             setPieData([]);
         }
+
+        setLoading(false); // Show UI now!
+
+        // PHASE 2: Fetch trend comparison data in background (non-blocking)
+        const yesterday = new Date(selectedDate);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayRange = getRange(yesterday);
+        const prevPayload = { siteId: currentSite.siteId, fromUtc: yesterdayRange.fromUtc, toUtc: yesterdayRange.toUtc };
+
+        Promise.all([
+            api.getFootfall(prevPayload).catch(() => ({ footfall: 0 })),
+            api.getDwellTime(prevPayload).catch(() => ({ avgDwellMinutes: 0 })),
+            api.getOccupancyTrends(prevPayload).catch(() => ([])),
+        ]).then(([prevFootfallRes, prevDwellRes, prevOccupancyRes]) => {
+            const prevFootfall = prevFootfallRes.footfall || 0;
+            const prevDwell = prevDwellRes.avgDwellMinutes || 0;
+            let prevLive = 0;
+            const prevOccArray = Array.isArray(prevOccupancyRes) ? prevOccupancyRes : [];
+            if (prevOccArray.length > 0) {
+                prevLive = prevOccArray[prevOccArray.length - 1].count || 0;
+            }
+            setTrends({
+                footfall: calculateTrend(footfallRes.footfall || 0, prevFootfall),
+                dwell: calculateTrend(dwellRes.avgDwellMinutes || 0, prevDwell),
+                occupancy: calculateTrend(currentLive, prevLive)
+            });
+        }).catch(() => {
+            // Trend comparison failed, keep neutral
+        });
 
       } catch {
         // API failed - reset to empty state
@@ -246,7 +247,6 @@ const Overview: React.FC = () => {
             dwell: { value: 0, direction: 'neutral' },
             occupancy: { value: 0, direction: 'neutral' }
         });
-      } finally {
         setLoading(false);
       }
     };
