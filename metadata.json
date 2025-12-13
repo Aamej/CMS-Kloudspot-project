@@ -1,0 +1,5 @@
+{
+  "name": "Kloudspot Crowd Manager",
+  "description": "A crowd management dashboard featuring real-time occupancy tracking, demographic analysis, and entry logs.",
+  "requestFramePermissions": []
+}
