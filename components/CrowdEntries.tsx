@@ -39,8 +39,8 @@ const CrowdEntries: React.FC = () => {
             if (sites && sites.length > 0) {
                 setCurrentSite(sites[0]);
             }
-        } catch (e) {
-            console.error(e);
+        } catch {
+            // Failed to load sites - component will show empty state
         }
     };
     init();
@@ -91,18 +91,14 @@ const CrowdEntries: React.FC = () => {
         });
 
         if (response && Array.isArray(response.records)) {
-            // Debug: log the API response to check available fields
-            if (response.records.length > 0) {
-                console.log('Entry-Exit API response sample:', response.records[0]);
-            }
             setEntries(response.records);
             setTotalCount(response.totalRecords || 0);
         } else {
             setEntries([]);
             setTotalCount(0);
         }
-    } catch (error) {
-        console.error("Error loading entries", error);
+    } catch {
+        // Network or API error - clear data and let UI show empty state
         setEntries([]);
         setTotalCount(0);
     } finally {
@@ -213,15 +209,16 @@ const CrowdEntries: React.FC = () => {
 
         {!loading && (
         <>
-            <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px]">
+            <div className="overflow-x-auto" role="region" aria-label="Crowd entries table">
+            <table className="w-full min-w-[700px]" aria-describedby="entries-caption">
+                <caption id="entries-caption" className="sr-only">List of visitor entries and exits</caption>
                 <thead className="bg-gray-100">
                 <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Name</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Sex</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Entry</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Exit</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Dwell Time</th>
+                    <th scope="col" className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Name</th>
+                    <th scope="col" className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Sex</th>
+                    <th scope="col" className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Entry</th>
+                    <th scope="col" className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Exit</th>
+                    <th scope="col" className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Dwell Time</th>
                 </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -263,18 +260,21 @@ const CrowdEntries: React.FC = () => {
             <div className="mt-auto px-6 py-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
                 
                 <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <span>Rows per page:</span>
+                    <label htmlFor="page-size" className="sr-only">Rows per page</label>
+                    <span aria-hidden="true">Rows per page:</span>
                     <div className="relative">
-                        <select 
+                        <select
+                            id="page-size"
                             value={pageSize}
                             onChange={handlePageSizeChange}
+                            aria-label="Select rows per page"
                             className="appearance-none bg-white border border-gray-300 rounded px-3 py-1 pr-8 focus:outline-none focus:border-primary cursor-pointer"
                         >
                             <option value={10}>10</option>
                             <option value={50}>50</option>
                             <option value={100}>100</option>
                         </select>
-                        <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
+                        <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" aria-hidden="true" />
                     </div>
                 </div>
 
@@ -283,23 +283,25 @@ const CrowdEntries: React.FC = () => {
                         Page <span className="font-medium text-gray-900">{currentPage}</span> of <span className="font-medium text-gray-900">{totalPages}</span>
                     </span>
                     
-                    <div className="flex items-center gap-1">
-                        <button 
+                    <nav className="flex items-center gap-1" aria-label="Pagination">
+                        <button
                             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                             disabled={currentPage === 1}
+                            aria-label="Previous page"
                             className="p-1.5 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             <ChevronLeft size={18} />
                         </button>
-                        
-                        <button 
+
+                        <button
                             onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                             disabled={currentPage === totalPages || totalPages === 0}
+                            aria-label="Next page"
                             className="p-1.5 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             <ChevronRight size={18} />
                         </button>
-                    </div>
+                    </nav>
                 </div>
             </div>
         </>
@@ -309,15 +311,16 @@ const CrowdEntries: React.FC = () => {
 
       {/* Alerts Panel - floating in top-right corner, compact size */}
       {showAlerts && (
-        <div className="fixed top-16 right-4 w-56 z-50">
+        <aside className="fixed top-16 right-4 w-56 z-50" role="complementary" aria-label="Real-time alerts">
           <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
             <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between bg-gray-50">
               <h2 className="text-sm font-semibold text-gray-700">Alerts</h2>
               <button
                 onClick={() => setShowAlerts(false)}
+                aria-label="Close alerts panel"
                 className="text-gray-400 hover:text-gray-600"
               >
-                <X size={14} />
+                <X size={14} aria-hidden="true" />
               </button>
             </div>
 
@@ -352,7 +355,7 @@ const CrowdEntries: React.FC = () => {
               )}
             </div>
           </div>
-        </div>
+        </aside>
       )}
     </div>
   );
