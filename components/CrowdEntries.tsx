@@ -3,6 +3,7 @@ import { Calendar, ChevronLeft, ChevronRight, Loader2, ChevronDown, X, MapPin } 
 import { api } from '../services/api';
 import { socketService } from '../services/socket';
 import { EntryExitRecord, Site, Alert } from '../types';
+import { detectGender } from '../utils/genderDetect';
 
 const CrowdEntries: React.FC = () => {
   const [entries, setEntries] = useState<EntryExitRecord[]>([]);
@@ -140,11 +141,14 @@ const CrowdEntries: React.FC = () => {
       return new Date(epoch).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  // Handle both 'gender' and 'sex' field names from API
+  // Get gender - use API value if available, otherwise detect from name
   const formatGender = (person: EntryExitRecord) => {
-      const value = person.gender || person.sex || (person as any).Gender || (person as any).Sex;
-      if (!value) return '--';
-      return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+      const apiValue = person.gender || person.sex || (person as any).Gender || (person as any).Sex;
+      if (apiValue) {
+          return apiValue.charAt(0).toUpperCase() + apiValue.slice(1).toLowerCase();
+      }
+      // No API value - try detecting from name
+      return detectGender(person.personName) || '--';
   };
 
   // Format dwell time from minutes to readable string
