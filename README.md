@@ -38,7 +38,7 @@ Currently pointing to: `https://hiring-dev.internal.kloudspot.com`
 
 ```
 Email: aamejshreyansh17@gmail.com
-Password: 7590134
+Password: 1234567890
 ```
 
 ## Folder Structure
