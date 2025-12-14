@@ -38,14 +38,27 @@ Currently pointing to: `https://hiring-dev.internal.kloudspot.com`
 
 ```
 Email: aamejshreyansh17@gmail.com
-Password: 1234567890
+Password: okay
 ```
+
+## Note on Gender/Sex Field in Crowd Entries
+
+The backend API does not return gender data for entry/exit records. To populate the Sex column, we implemented a name-based gender detection utility (`utils/genderDetect.ts`) that infers gender from the person's first name using:
+
+- A lookup table of common male/female names across cultures
+- Pattern matching based on typical name endings
+
+This is a best-effort approach and has limitations:
+- Names not in the lookup table or with ambiguous patterns will show `--`
+- Unisex names may be incorrectly classified
+- Entries with missing or invalid names will display `--`
 
 ## Folder Structure
 
 ```
 ├── components/     # UI components (Sidebar, Header, Overview, CrowdEntries)
 ├── services/       # API client and socket connection
+├── utils/          # Helper utilities (gender detection)
 ├── types.ts        # TypeScript interfaces
 ├── constants.ts    # Static data and config
 └── App.tsx         # Root component with view routing
